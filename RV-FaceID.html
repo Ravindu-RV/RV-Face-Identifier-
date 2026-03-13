@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RV Face ID</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+:root{
+  --bg:#060e1a;--panel:#0a1628;--panel2:#0d1e35;--card:#0f2240;
+  --cyan:#00d4ff;--green:#00ff88;--amber:#ffa500;--red:#ff3355;--purple:#a78bfa;
+  --border:#1a3a5c;--text:#cce0f0;--dim:#4a7a9b;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;}
+
+/* LOADING SCREEN */
+#loadScreen{position:fixed;inset:0;background:var(--bg);z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
+.ld-logo{font-family:'Orbitron',sans-serif;font-size:32px;font-weight:900;letter-spacing:4px;}
+.ld-logo .rv{color:var(--cyan);text-shadow:0 0 20px var(--cyan);}
+.ld-track{width:340px;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.ld-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:3px;width:0%;transition:width .4s;}
+.ld-msg{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);}
+.ld-steps{display:flex;flex-direction:column;gap:5px;margin-top:8px;}
+.ld-step{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);display:flex;align-items:center;gap:7px;}
+.ld-step.done{color:var(--green);}
+.ld-step.active{color:var(--cyan);}
+.ld-step .si{width:14px;text-align:center;}
+
+/* ERROR SCREEN */
+#errScreen{position:fixed;inset:0;background:var(--bg);z-index:9998;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px;}
+.err-box{background:var(--panel);border:1px solid var(--red);border-radius:10px;padding:28px;max-width:520px;width:100%;}
+.err-title{font-family:'Orbitron',sans-serif;font-size:14px;color:var(--red);letter-spacing:2px;margin-bottom:12px;}
+.err-msg{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text);line-height:1.9;}
+.err-msg a{color:var(--cyan);}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:54px;
+  background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;position:relative;}
+header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan) 35%,var(--green) 65%,transparent);opacity:.55;}
+.brand{display:flex;align-items:center;gap:11px;}
+.brand-box{width:34px;height:34px;border:2px solid var(--cyan);border-radius:7px;
+  display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;
+  font-size:10px;font-weight:900;color:var(--cyan);box-shadow:0 0 16px #00d4ff33;}
+.brand-title{font-family:'Orbitron',sans-serif;font-size:17px;font-weight:900;letter-spacing:3px;}
+.rv{color:var(--cyan);text-shadow:0 0 12px var(--cyan);}
+.brand-sub{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:4px;color:var(--dim);}
+.hdr-r{display:flex;align-items:center;gap:14px;font-family:'Share Tech Mono',monospace;font-size:11px;}
+.pill{display:flex;align-items:center;gap:6px;padding:4px 11px;border:1px solid var(--border);border-radius:20px;background:var(--panel2);}
+.dot{width:6px;height:6px;border-radius:50%;}
+.dot.g{background:var(--green);box-shadow:0 0 7px var(--green);animation:blink 2s infinite;}
+.dot.a{background:var(--amber);box-shadow:0 0 7px var(--amber);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* TABS */
+.tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;}
+.tab{padding:10px 20px;font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:2px;
+  cursor:pointer;border-bottom:2px solid transparent;color:var(--dim);transition:all .2s;user-select:none;}
+.tab:hover{color:var(--text);}
+.tab.on{color:var(--cyan);border-bottom-color:var(--cyan);}
+
+/* LAYOUT */
+.app{display:flex;flex-direction:column;height:100vh;}
+.content{flex:1;overflow:hidden;}
+.page{display:none;width:100%;height:100%;overflow:hidden;}
+.page.on{display:flex;}
+.lcol{width:390px;flex-shrink:0;display:flex;flex-direction:column;gap:11px;padding:12px;overflow-y:auto;border-right:1px solid var(--border);}
+.rcol{flex:1;display:flex;flex-direction:column;gap:11px;padding:12px;overflow-y:auto;}
+
+/* SECTION */
+.sec{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;}
+.stitle{font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:3px;color:var(--dim);
+  display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.stitle::after{content:'';flex:1;height:1px;background:var(--border);}
+.cnt{color:var(--cyan);margin-left:3px;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 13px;
+  border:1px solid;border-radius:5px;font-family:'Orbitron',sans-serif;font-size:9px;
+  letter-spacing:1.5px;cursor:pointer;background:transparent;transition:all .2s;white-space:nowrap;}
+.btn:hover:not([disabled]){filter:brightness(1.25);transform:translateY(-1px);}
+.btn[disabled]{opacity:.3;cursor:not-allowed;}
+.bc{border-color:var(--cyan);color:var(--cyan);}
+.bg{border-color:var(--green);color:var(--green);}
+.ba{border-color:var(--amber);color:var(--amber);}
+.br2{border-color:var(--red);color:var(--red);}
+.bp{border-color:var(--purple);color:var(--purple);}
+.bsg{border-color:var(--green);color:#000;background:var(--green);font-weight:700;}
+.brow{display:flex;gap:7px;flex-wrap:wrap;}
+
+/* INPUTS */
+.fld{display:flex;flex-direction:column;gap:4px;}
+.lbl{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;}
+.inp{background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  font-family:'Share Tech Mono',monospace;font-size:13px;padding:8px 10px;border-radius:5px;
+  outline:none;transition:border-color .2s;width:100%;}
+.inp:focus{border-color:var(--cyan);}
+.inp::placeholder{color:var(--dim);opacity:.55;}
+
+/* CAMERA */
+.cambox{position:relative;background:#000;border:1px solid var(--border);border-radius:8px;
+  overflow:hidden;width:100%;aspect-ratio:4/3;}
+.cambox video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1);}
+.camph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:8px;background:#000;color:var(--dim);
+  font-family:'Share Tech Mono',monospace;font-size:11px;}
+.camph-icon{font-size:40px;opacity:.18;}
+.scan-bar{position:absolute;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  box-shadow:0 0 10px var(--cyan);z-index:14;opacity:0;pointer-events:none;}
+.cam-on .scan-bar{opacity:1;animation:sc 2.5s linear infinite;}
+@keyframes sc{0%{top:5%}100%{top:95%}}
+.cors{position:absolute;inset:9px;pointer-events:none;z-index:12;}
+.cor{position:absolute;width:20px;height:20px;border-color:var(--cyan);border-style:solid;opacity:.7;}
+.cor.tl{top:0;left:0;border-width:2px 0 0 2px}
+.cor.tr{top:0;right:0;border-width:2px 2px 0 0}
+.cor.bl{bottom:0;left:0;border-width:0 0 2px 2px}
+.cor.br{bottom:0;right:0;border-width:0 2px 2px 0}
+.camstat{position:absolute;bottom:8px;left:10px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--cyan);z-index:20;}
+/* detection box drawn on canvas */
+#overlayCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:16;pointer-events:none;transform:scaleX(-1);}
+.cam-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:50;}
+
+/* PROFILE */
+.prof-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;flex:1;color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:11px;text-align:center;line-height:2.2;}
+.prof-card{display:none;flex-direction:column;gap:9px;}
+.prof-photo{width:115px;height:135px;border:3px solid var(--border);border-radius:8px;
+  overflow:hidden;background:var(--panel2);display:flex;align-items:center;justify-content:center;
+  font-size:48px;margin:0 auto;transition:border-color .4s,box-shadow .4s;}
+.prof-photo img{width:100%;height:100%;object-fit:cover;}
+.prof-photo.hit{border-color:var(--cyan);box-shadow:0 0 22px #00d4ff44;}
+.match-tag{display:none;text-align:center;font-family:'Orbitron',sans-serif;font-size:8px;
+  letter-spacing:3px;color:var(--green);background:#00ff8815;border:1px solid #00ff8840;
+  padding:3px 10px;border-radius:3px;margin:2px auto 0;width:fit-content;}
+.match-tag.show{display:block;}
+.prof-name{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:700;color:var(--cyan);
+  text-align:center;letter-spacing:2px;text-shadow:0 0 14px #00d4ff55;}
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ic{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;position:relative;overflow:hidden;}
+.ic::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--cyan);opacity:.4;}
+.ic.gn::before{background:var(--green);opacity:.9;}
+.ic.fw{grid-column:1/-1;}
+.ilbl{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--dim);margin-bottom:4px;}
+.ival{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:700;color:var(--text);}
+.ival.big{font-size:26px;color:var(--amber);}
+.ival.gn{color:var(--green);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:3px;}
+.att-badge{display:flex;align-items:center;gap:7px;padding:9px 12px;border-radius:6px;
+  border:1px solid;font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;}
+.abw{border-color:var(--border);color:var(--dim);background:var(--panel2);}
+.abp{border-color:var(--green);color:var(--green);background:#00ff8811;box-shadow:0 0 14px #00ff8820;}
+.abd{border-color:var(--amber);color:var(--amber);background:#ffa50011;}
+.cbar{display:flex;align-items:center;gap:7px;}
+.ctrack{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.cfill{height:100%;background:linear-gradient(90deg,var(--red),var(--amber),var(--green));border-radius:3px;transition:width .5s;}
+.cnum{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--green);min-width:36px;}
+
+/* PEOPLE LIST */
+.plist{display:flex;flex-direction:column;gap:5px;max-height:250px;overflow-y:auto;}
+.prow{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--border);
+  border-radius:6px;background:var(--panel2);cursor:pointer;transition:border-color .2s;}
+.prow:hover{border-color:var(--cyan)44;}
+.prow.on{border-color:var(--cyan);background:#00d4ff07;}
+.pph{width:30px;height:30px;border-radius:4px;overflow:hidden;border:1px solid var(--border);
+  background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.pph img{width:100%;height:100%;object-fit:cover;}
+.pinfo{flex:1;overflow:hidden;}
+.pname2{font-weight:700;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pid2{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);}
+.pdel{background:none;border:none;cursor:pointer;color:var(--dim);font-size:10px;
+  padding:3px 6px;border-radius:3px;transition:all .2s;}
+.pdel:hover{color:var(--red);background:#ff335511;}
+
+/* REGISTER TAB */
+.reg-page{flex-direction:column;padding:13px;gap:12px;overflow-y:auto;}
+.reg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.reg-preview{width:100%;aspect-ratio:4/3;background:var(--panel2);border:1px solid var(--border);
+  border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:52px;}
+.reg-preview img{width:100%;height:100%;object-fit:cover;}
+
+/* ATTENDANCE TAB */
+.att-page{flex-direction:column;padding:13px;gap:12px;}
+.att-tb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.att-cts{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);}
+.att-wrap{flex:1;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:8px;}
+table{width:100%;border-collapse:collapse;}
+thead tr{background:var(--card);}
+th{padding:9px 12px;font-family:'Orbitron',sans-serif;font-size:8px;letter-spacing:2px;color:var(--dim);text-align:left;white-space:nowrap;}
+td{padding:8px 12px;border-bottom:1px solid var(--border);font-family:'Share Tech Mono',monospace;font-size:11px;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:#ffffff04;}
+.bp2{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;
+  font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;letter-spacing:1px;}
+.bpres2{background:#00ff8818;color:var(--green);border:1px solid #00ff8840;}
+.babs2{background:#ff335518;color:var(--red);border:1px solid #ff335540;}
+.etd{text-align:center;color:var(--dim);padding:38px !important;}
+
+/* DATABASE TAB */
+.db-page{flex-direction:column;padding:13px;gap:12px;overflow-y:auto;}
+
+/* TOAST */
+.toast-c{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column-reverse;gap:6px;z-index:9000;}
+.toast{padding:9px 14px;font-family:'Share Tech Mono',monospace;font-size:10px;border-radius:6px;
+  border-left:3px solid var(--cyan);background:var(--panel);color:var(--text);
+  box-shadow:0 4px 20px #00000099;animation:tin .3s ease,tout .3s 2.9s ease forwards;max-width:300px;}
+.toast.ok{border-color:var(--green);}
+.toast.err{border-color:var(--red);}
+.toast.warn{border-color:var(--amber);}
+@keyframes tin{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes tout{to{opacity:0;transform:translateY(7px)}}
+::-webkit-scrollbar{width:3px;height:3px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadScreen">
+  <div class="ld-logo"><span class="rv">RV</span> FACE ID</div>
+  <div class="ld-msg" id="ldMsg">Loading face recognition AI models…</div>
+  <div class="ld-track"><div class="ld-fill" id="ldFill"></div></div>
+  <div class="ld-steps">
+    <div class="ld-step" id="ls0"><span class="si">○</span> Face Detector Model</div>
+    <div class="ld-step" id="ls1"><span class="si">○</span> Landmark Model</div>
+    <div class="ld-step" id="ls2"><span class="si">○</span> Recognition Model</div>
+  </div>
+  <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);margin-top:4px;">
+    ⚠ Requires internet on first load (~6MB). Models cache in browser for offline use.
+  </div>
+</div>
+
+<!-- ERROR -->
+<div id="errScreen">
+  <div class="err-box">
+    <div class="err-title">⚠ CANNOT LOAD FACE-API MODELS</div>
+    <div class="err-msg">
+      RV Face ID requires face-api.js AI models to recognize faces.<br><br>
+      <strong style="color:var(--cyan);">To fix this:</strong><br>
+      1. Make sure you have an <strong>internet connection</strong><br>
+      2. Open this HTML file directly in <strong>Chrome, Firefox, or Edge</strong><br>
+      3. Do NOT open from claude.ai preview — download and open locally<br><br>
+      Once loaded once, models are cached and work <strong>offline</strong> forever.<br><br>
+      <span style="color:var(--dim);">Error: face-api.js failed to load from CDN.</span>
+    </div>
+    <br>
+    <button class="btn bc" onclick="location.reload()">⟳ RETRY</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="mainApp" style="display:none;">
+
+<header>
+  <div class="brand">
+    <div class="brand-box">RV</div>
+    <div>
+      <div class="brand-title"><span class="rv">RV</span> FACE ID</div>
+      <div class="brand-sub">SMART ATTENDANCE SYSTEM</div>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="pill">
+      <div class="dot g" id="sysDot"></div>
+      <span id="sysLbl" style="color:var(--text);">ONLINE</span>
+    </div>
+    <span id="clk" style="color:var(--text);font-size:13px;">--:--:--</span>
+    <span id="dte" style="color:var(--dim);">---</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab on"  data-tab="identify">🎯 IDENTIFY</div>
+  <div class="tab" data-tab="register">➕ REGISTER</div>
+  <div class="tab" data-tab="attendance">📋 ATTENDANCE</div>
+  <div class="tab" data-tab="database">💾 DATABASE</div>
+</div>
+
+<div class="content">
+
+<!-- ══ IDENTIFY ══ -->
+<div class="page on" id="tab-identify">
+  <div class="lcol">
+    <div class="sec">
+      <div class="stitle">Live Camera</div>
+      <div class="cambox" id="camBox">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="overlayCanvas"></canvas>
+        <div class="camph" id="camPh">
+          <div class="camph-icon">📷</div>
+          <div>CAMERA INACTIVE</div>
+          <div style="font-size:9px;opacity:.45;">Press START CAMERA</div>
+        </div>
+        <div class="cors">
+          <div class="cor tl"></div><div class="cor tr"></div>
+          <div class="cor bl"></div><div class="cor br"></div>
+        </div>
+        <div class="scan-bar"></div>
+        <div class="cam-flash" id="camFlash"></div>
+        <div class="camstat" id="camStat">STANDBY</div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="stitle">Controls</div>
+      <div class="brow">
+        <button class="btn bc" id="btnStart" onclick="startCam()">▶ START</button>
+        <button class="btn ba" id="btnScan" onclick="doIdentify()" disabled>⬡ IDENTIFY</button>
+        <button class="btn bp" id="btnAuto" onclick="toggleAuto()" disabled>⟳ AUTO: OFF</button>
+        <button class="btn br2" id="btnStop" onclick="stopCam()" disabled>■ STOP</button>
+      </div>
+    </div>
+    <div class="sec" style="flex:1;">
+      <div class="stitle">Registered <span class="cnt" id="pplCnt">0</span></div>
+      <div class="plist" id="peopleList">
+        <div style="color:var(--dim);text-align:center;padding:18px;font-family:'Share Tech Mono',monospace;font-size:11px;">No people registered</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rcol">
+    <div class="sec" style="flex:1;">
+      <div class="stitle">Identified Profile</div>
+      <div class="prof-empty" id="profEmpty">
+        <div style="font-size:46px;opacity:.1;">🪪</div>
+        <div>Start camera &amp; press<br><strong style="color:var(--text);">IDENTIFY FACE</strong></div>
+      </div>
+      <div class="prof-card" id="profCard">
+        <div class="prof-photo" id="profPhoto"><span>👤</span></div>
+        <div class="match-tag" id="matchTag">✓ FACE MATCHED</div>
+        <div class="prof-name" id="profName">—</div>
+        <div class="att-badge abw" id="attBadge">⬡ &nbsp;PENDING</div>
+        <div class="ic fw">
+          <div class="ilbl">MATCH CONFIDENCE</div>
+          <div class="cbar"><div class="ctrack"><div class="cfill" id="cfill" style="width:0%"></div></div><div class="cnum" id="cnum">--%</div></div>
+        </div>
+        <div class="ig">
+          <div class="ic"><div class="ilbl">AGE (2026)</div><div class="ival big" id="iAge">--</div></div>
+          <div class="ic"><div class="ilbl">BIRTH YEAR</div><div class="ival" id="iBirth" style="font-size:17px">----</div></div>
+          <div class="ic gn fw"><div class="ilbl">ID NUMBER</div><div class="ival gn" id="iID">—</div></div>
+          <div class="ic fw"><div class="ilbl">FULL NAME</div><div class="ival" id="iName" style="font-size:13px;">—</div></div>
+          <div class="ic fw"><div class="ilbl">DEPARTMENT</div><div class="ival" id="iDept" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--dim);">—</div></div>
+          <div class="ic fw"><div class="ilbl">IDENTIFIED AT</div><div class="ival" id="iTime" style="font-family:'Share Tech Mono',monospace;font-size:12px;">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div><!-- /identify -->
+
+
+<!-- ══ REGISTER ══ -->
+<div class="page reg-page" id="tab-register">
+  <div class="reg-grid">
+    <div class="sec">
+      <div class="stitle">Person Details</div>
+      <div style="display:flex;flex-direction:column;gap:9px;">
+        <div class="fld"><div class="lbl">Full Name *</div><input class="inp" id="rName" placeholder="Enter full name"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+          <div class="fld"><div class="lbl">Birth Year *</div><input class="inp" id="rBirth" type="number" placeholder="1995" min="1930" max="2025"></div>
+          <div class="fld"><div class="lbl">ID Number *</div><input class="inp" id="rID" placeholder="EMP-001"></div>
+        </div>
+        <div class="fld"><div class="lbl">Department</div><input class="inp" id="rDept" placeholder="Optional"></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="stitle">Photo</div>
+      <div style="display:flex;flex-direction:column;gap:9px;">
+        <div class="reg-preview" id="regPrev">📸</div>
+        <div class="brow">
+          <button class="btn bc" style="flex:1" onclick="capFromCam()">📷 CAPTURE</button>
+          <label style="flex:1;cursor:pointer;">
+            <input type="file" id="regFile" accept="image/*" style="display:none" onchange="loadRegFile(event)">
+            <div class="btn ba" style="width:100%;">📁 UPLOAD</div>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:center;">
+    <button class="btn bsg" style="padding:12px 42px;font-size:11px;" onclick="doRegister()">✦ REGISTER & SAVE FACE DATA</button>
+  </div>
+  <div class="sec" style="flex:1;">
+    <div class="stitle">All Registered <span class="cnt" id="regCnt">0</span></div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr><th>PHOTO</th><th>NAME</th><th>ID</th><th>AGE</th><th>DEPT</th><th>FACE</th><th>ACTION</th></tr></thead>
+        <tbody id="regTbody"><tr><td colspan="7" class="etd">No people registered</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div><!-- /register -->
+
+
+<!-- ══ ATTENDANCE ══ -->
+<div class="page att-page" id="tab-attendance">
+  <div class="att-tb">
+    <button class="btn bg" onclick="exportCSV()">📊 EXPORT CSV</button>
+    <label style="cursor:pointer;">
+      <input type="file" id="csvIn" accept=".csv,.xlsx,.xls" style="display:none" onchange="importCSV(event)">
+      <div class="btn bc">📂 IMPORT CSV</div>
+    </label>
+    <button class="btn ba" onclick="markAllAbsent()">⚠ MARK ALL ABSENT</button>
+    <button class="btn br2" onclick="clearToday()">🗑 CLEAR TODAY</button>
+    <div class="att-cts">
+      <span style="color:var(--green);" id="cPres">0</span> Present &nbsp;|&nbsp;
+      <span style="color:var(--red);" id="cAbs">0</span> Absent &nbsp;|&nbsp;
+      Total <span style="color:var(--text);" id="cTot">0</span>
+    </div>
+  </div>
+  <div class="att-wrap">
+    <table>
+      <thead><tr><th>PHOTO</th><th>NAME</th><th>ID</th><th>AGE</th><th>DEPT</th><th>STATUS</th><th>TIME</th><th>DATE</th></tr></thead>
+      <tbody id="attTbody"><tr><td colspan="8" class="etd">No records</td></tr></tbody>
+    </table>
+  </div>
+</div><!-- /attendance -->
+
+
+<!-- ══ DATABASE ══ -->
+<div class="page db-page" id="tab-database">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="sec">
+      <div class="stitle">Save Database</div>
+      <div style="display:flex;flex-direction:column;gap:9px;">
+        <div class="fld"><div class="lbl">File Name</div><input class="inp" id="dbSaveName" placeholder="e.g. Office_2026"></div>
+        <button class="btn bg" onclick="saveDB()">💾 SAVE .rvdb FILE</button>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);line-height:1.8;">
+          Saves all people, face data &amp; attendance.<br>Open on any device with this app.
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="stitle">Load Database</div>
+      <div style="display:flex;flex-direction:column;gap:9px;">
+        <label style="cursor:pointer;">
+          <input type="file" id="dbLoadIn" accept=".rvdb,.json" style="display:none" onchange="loadDB(event)">
+          <div class="btn bc" style="width:100%;padding:13px;">📂 OPEN .rvdb FILE</div>
+        </label>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);line-height:1.8;">
+          Opens a saved database file and restores<br>all people, faces and attendance.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="stitle">Status</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+      <div class="ic"><div class="ilbl">PEOPLE</div><div class="ival big" id="dbPpl">0</div></div>
+      <div class="ic"><div class="ilbl">ATTENDANCE</div><div class="ival big" style="color:var(--purple);" id="dbAtt">0</div></div>
+      <div class="ic"><div class="ilbl">DB NAME</div><div class="ival" style="font-size:12px;color:var(--cyan);" id="dbNm">default</div></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="stitle">Danger Zone</div>
+    <div class="brow">
+      <button class="btn br2" onclick="if(confirm('Delete ALL people?')){db.people=[];db.att=[];persist();renderAll();toast('Deleted','warn')}">🗑 DELETE ALL</button>
+      <button class="btn br2" onclick="if(confirm('Full reset?')){db={name:'default',people:[],att:[]};localStorage.removeItem(SK);renderAll();toast('Reset','warn')}">⚠ FACTORY RESET</button>
+    </div>
+  </div>
+</div><!-- /database -->
+
+</div><!-- /content -->
+</div><!-- /mainApp -->
+
+<div class="toast-c" id="toastC"></div>
+<canvas id="hidCvs" style="display:none;"></canvas>
+
+<!-- Load face-api from multiple CDN fallbacks -->
+<script>
+(function(){
+  var cdns = [
+    'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js',
+    'https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js'
+  ];
+  var idx = 0;
+  function tryNext(){
+    if(idx >= cdns.length){
+      document.getElementById('loadScreen').style.display='none';
+      document.getElementById('errScreen').style.display='flex';
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = cdns[idx++];
+    s.onload = function(){ window._faceApiLoaded = true; };
+    s.onerror = function(){ tryNext(); };
+    document.head.appendChild(s);
+  }
+  tryNext();
+})();
+</script>
+
+<script>
+// ═══════════════════════════ CONSTANTS ═══════════════════════════
+const CY = 2026;
+const SK = 'rvfaceid_v5';
+const MODEL_URLS = [
+  'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights',
+  'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights',
+];
+
+// ═══════════════════════════ STATE ═══════════════════════════
+let db = { name:'default', people:[], att:[] };
+// people: {id, name, birthYear, dept, photo, descriptor:Float32Array}
+// att:    {pid, name, idNum, dept, birthYear, photo, status, time, date, ts}
+
+let camStream = null;
+let autoMode = false, autoTimer = null;
+let regPhoto = null;
+let curPerson = null;
+let faceMatcher = null;
+let scanRunning = false;
+
+// ═══════════════════════════ CLOCK ═══════════════════════════
+setInterval(()=>{
+  const n=new Date();
+  document.getElementById('clk').textContent=n.toLocaleTimeString('en-US',{hour12:false});
+  document.getElementById('dte').textContent=n.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+},1000);
+
+// ═══════════════════════════ TABS ═══════════════════════════
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));
+    t.classList.add('on');
+    document.getElementById('tab-'+t.dataset.tab).classList.add('on');
+    if(t.dataset.tab==='attendance') renderAttTable();
+    if(t.dataset.tab==='database') updateDbStats();
+  });
+});
+
+// ═══════════════════════════ STORAGE ═══════════════════════════
+function persist(){
+  try{
+    localStorage.setItem(SK, JSON.stringify({
+      name:db.name,
+      people: db.people.map(p=>({
+        id:p.id, name:p.name, birthYear:p.birthYear, dept:p.dept||'',
+        photo:p.photo||null,
+        descriptor: p.descriptor ? Array.from(p.descriptor) : null
+      })),
+      att: db.att
+    }));
+  }catch(e){ toast('Storage full','warn'); }
+}
+
+function hydrate(){
+  try{
+    const raw=localStorage.getItem(SK);
+    if(!raw) return;
+    const d=JSON.parse(raw);
+    db.name=d.name||'default';
+    db.att=d.att||[];
+    db.people=(d.people||[]).map(p=>({
+      ...p,
+      descriptor: p.descriptor ? new Float32Array(p.descriptor) : null
+    }));
+  }catch(e){}
+}
+
+// ═══════════════════════════ REBUILD MATCHER ═══════════════════════════
+function rebuildMatcher(){
+  const labeled = db.people
+    .filter(p=>p.descriptor && p.descriptor.length===128)
+    .map(p=>new faceapi.LabeledFaceDescriptors(p.id,[p.descriptor]));
+  faceMatcher = labeled.length
+    ? new faceapi.FaceMatcher(labeled, 0.5)
+    : null;
+  console.log('Matcher rebuilt with', labeled.length, 'faces');
+}
+
+// ═══════════════════════════ LOAD MODELS ═══════════════════════════
+async function loadModels(){
+  function setStep(i, state){ // state: active, done
+    const el=document.getElementById('ls'+i);
+    el.classList.remove('active','done');
+    el.classList.add(state);
+    el.querySelector('.si').textContent = state==='done' ? '✓' : '▶';
+  }
+
+  const models = [
+    { name:'ssdMobilenetv1',   fn: url=>faceapi.nets.ssdMobilenetv1.loadFromUri(url) },
+    { name:'faceLandmark68Net',fn: url=>faceapi.nets.faceLandmark68Net.loadFromUri(url) },
+    { name:'faceRecognitionNet',fn:url=>faceapi.nets.faceRecognitionNet.loadFromUri(url) },
+  ];
+
+  const fill=document.getElementById('ldFill');
+  const msg=document.getElementById('ldMsg');
+
+  for(let i=0;i<models.length;i++){
+    setStep(i,'active');
+    msg.textContent='Loading: '+models[i].name+'…';
+    fill.style.width=((i/models.length)*100)+'%';
+
+    let loaded=false;
+    for(const url of MODEL_URLS){
+      try{
+        await models[i].fn(url);
+        loaded=true; break;
+      }catch(e){ continue; }
+    }
+    if(!loaded){
+      msg.textContent='⚠ Failed to load '+models[i].name;
+      document.getElementById('loadScreen').style.display='none';
+      document.getElementById('errScreen').style.display='flex';
+      return;
+    }
+    setStep(i,'done');
+  }
+
+  fill.style.width='100%';
+  msg.textContent='✓ Ready!';
+  hydrate();
+  rebuildMatcher();
+  renderAll();
+  await new Promise(r=>setTimeout(r,700));
+  document.getElementById('loadScreen').style.display='none';
+  document.getElementById('mainApp').style.display='flex';
+}
+
+// ═══════════════════════════ CAMERA ═══════════════════════════
+async function startCam(){
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false
+    });
+    const v=document.getElementById('video');
+    v.srcObject=camStream; await v.play();
+    document.getElementById('camPh').style.display='none';
+    document.getElementById('camBox').classList.add('cam-on');
+    setCamStat('LIVE — READY');
+    en('btnStart',false); en('btnScan',true); en('btnAuto',true); en('btnStop',true);
+    // resize overlay canvas
+    v.addEventListener('loadedmetadata',()=>resizeOverlay(),{once:true});
+    resizeOverlay();
+    toast('Camera started','ok');
+  }catch(e){ toast('Camera error: '+e.message,'err'); }
+}
+
+function stopCam(){
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  if(autoMode) toggleAuto();
+  document.getElementById('video').srcObject=null;
+  document.getElementById('camPh').style.display='flex';
+  document.getElementById('camBox').classList.remove('cam-on');
+  clearOverlay();
+  setCamStat('STANDBY');
+  en('btnStart',true); en('btnScan',false); en('btnAuto',false); en('btnStop',false);
+}
+
+function setCamStat(t){document.getElementById('camStat').textContent=t;}
+function en(id,v){ const b=document.getElementById(id); if(v) b.removeAttribute('disabled'); else b.setAttribute('disabled',''); }
+
+function resizeOverlay(){
+  const v=document.getElementById('video');
+  const c=document.getElementById('overlayCanvas');
+  c.width=v.videoWidth||640; c.height=v.videoHeight||480;
+}
+
+function clearOverlay(){
+  const c=document.getElementById('overlayCanvas');
+  const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+}
+
+function toggleAuto(){
+  autoMode=!autoMode;
+  const b=document.getElementById('btnAuto');
+  if(autoMode){
+    b.textContent='⟳ AUTO: ON'; b.style.borderColor=b.style.color='var(--green)';
+    autoTimer=setInterval(doIdentify,4000);
+    toast('Auto-scan ON (4s)','ok');
+  }else{
+    b.textContent='⟳ AUTO: OFF'; b.style.borderColor=b.style.color='var(--purple)';
+    clearInterval(autoTimer);
+  }
+}
+
+// ═══════════════════════════ CAPTURE FRAME ═══════════════════════════
+function getFrameCanvas(){
+  const v=document.getElementById('video');
+  const c=document.getElementById('hidCvs');
+  c.width=v.videoWidth||640; c.height=v.videoHeight||480;
+  const ctx=c.getContext('2d');
+  // draw mirrored back so face is natural (not selfie-flipped)
+  ctx.save(); ctx.scale(-1,1); ctx.drawImage(v,-c.width,0,c.width,c.height); ctx.restore();
+  return c;
+}
+
+// ═══════════════════════════ IDENTIFY ═══════════════════════════
+async function doIdentify(){
+  if(scanRunning) return;
+  if(!camStream){ toast('Start the camera first','warn'); return; }
+  if(!faceMatcher){ toast('No registered faces — go to REGISTER tab','warn'); return; }
+
+  scanRunning=true;
+  setCamStat('SCANNING…');
+  clearOverlay();
+
+  const canvas = getFrameCanvas();
+  let det;
+  try{
+    det = await faceapi
+      .detectSingleFace(canvas, new faceapi.SsdMobilenetv1Options({minConfidence:0.4}))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+  }catch(e){
+    setCamStat('LIVE — READY'); scanRunning=false; return;
+  }
+
+  if(!det){
+    drawOverlay(null,'NO FACE','red');
+    toast('No face detected — look at camera','warn');
+    setCamStat('NO FACE');
+    setTimeout(()=>{ clearOverlay(); setCamStat('LIVE — READY'); },2000);
+    scanRunning=false; return;
+  }
+
+  // ── MATCH against all stored descriptors ──
+  const result = faceMatcher.findBestMatch(det.descriptor);
+  const dist   = result.distance;
+  const conf   = Math.round(Math.max(0,(1-dist)*100));
+
+  // Draw detection box on overlay canvas
+  const box = det.detection.box;
+  const vc  = document.getElementById('overlayCanvas');
+  const scX = vc.width  / canvas.width;
+  const scY = vc.height / canvas.height;
+
+  if(result.label==='unknown' || dist>0.5){
+    drawOverlay(
+      {x:box.x*scX, y:box.y*scY, w:box.width*scX, h:box.height*scY},
+      `UNKNOWN (${conf}%)`, 'red'
+    );
+    toast(`No match found — confidence only ${conf}%`,'warn');
+    setCamStat('UNKNOWN');
+    setTimeout(()=>{ clearOverlay(); setCamStat('LIVE — READY'); },2500);
+    scanRunning=false; return;
+  }
+
+  // ── MATCHED ──
+  drawOverlay(
+    {x:box.x*scX, y:box.y*scY, w:box.width*scX, h:box.height*scY},
+    `${db.people.find(p=>p.id===result.label)?.name||result.label} (${conf}%)`, 'green'
+  );
+
+  // flash
+  const fl=document.getElementById('camFlash');
+  fl.style.opacity='.35'; setTimeout(()=>fl.style.opacity='0',300);
+
+  const person = db.people.find(p=>p.id===result.label);
+  if(!person){ scanRunning=false; return; }
+
+  showProfile(person, conf);
+  setCamStat('MATCHED: '+person.name);
+  setTimeout(()=>{ clearOverlay(); setCamStat('LIVE — READY'); },3500);
+  scanRunning=false;
+}
+
+function drawOverlay(box, label, color){
+  const c=document.getElementById('overlayCanvas');
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+  if(!box) return;
+  const col = color==='green' ? '#00ff88' : '#ff3355';
+  ctx.strokeStyle=col; ctx.lineWidth=2;
+  ctx.shadowColor=col; ctx.shadowBlur=12;
+  ctx.strokeRect(box.x,box.y,box.w,box.h);
+  ctx.shadowBlur=0;
+  ctx.fillStyle=col;
+  ctx.fillRect(box.x, box.y-22, ctx.measureText(label).width+16, 22);
+  ctx.fillStyle='#000';
+  ctx.font='bold 11px Orbitron, monospace';
+  ctx.fillText(label, box.x+8, box.y-6);
+}
+
+// ═══════════════════════════ SHOW PROFILE ═══════════════════════════
+function showProfile(person, conf){
+  curPerson=person;
+  const age=CY-parseInt(person.birthYear);
+  const now=new Date();
+  const ts=now.toLocaleTimeString('en-US',{hour12:false});
+  const ds=now.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+
+  const ph=document.getElementById('profPhoto');
+  ph.innerHTML=person.photo?`<img src="${person.photo}" alt="${person.name}">`:'<span>👤</span>';
+  ph.classList.add('hit');
+  document.getElementById('matchTag').classList.add('show');
+  document.getElementById('profName').textContent=person.name.toUpperCase();
+  document.getElementById('profEmpty').style.display='none';
+  document.getElementById('profCard').style.display='flex';
+
+  document.getElementById('iAge').textContent=age;
+  document.getElementById('iBirth').textContent=person.birthYear;
+  document.getElementById('iID').textContent=person.id;
+  document.getElementById('iName').textContent=person.name;
+  document.getElementById('iDept').textContent=person.dept||'—';
+  document.getElementById('iTime').textContent=ts+' · '+ds;
+  document.getElementById('cfill').style.width=Math.min(conf,100)+'%';
+  document.getElementById('cnum').textContent=conf+'%';
+
+  const today=now.toDateString();
+  const dup=db.att.find(a=>a.pid===person.id && new Date(a.ts).toDateString()===today);
+  const badge=document.getElementById('attBadge');
+
+  if(dup){
+    badge.className='att-badge abd';
+    badge.innerHTML='◈ &nbsp;ALREADY MARKED PRESENT';
+    toast(person.name+' already present today','warn');
+  }else{
+    badge.className='att-badge abp';
+    badge.innerHTML='✓ &nbsp;PRESENT — MARKED';
+    db.att.unshift({
+      pid:person.id, name:person.name, idNum:person.id,
+      dept:person.dept||'', birthYear:person.birthYear,
+      photo:person.photo||null, status:'Present',
+      time:ts, date:ds, ts:Date.now()
+    });
+    persist();
+    toast('✓ '+person.name+' — attendance marked','ok');
+  }
+  speakName(person.name);
+  renderPeopleList();
+}
+
+// ═══════════════════════════ REGISTER ═══════════════════════════
+function capFromCam(){
+  if(!camStream){ toast('Start camera first','warn'); return; }
+  const c=getFrameCanvas();
+  regPhoto=c.toDataURL('image/jpeg',0.92);
+  showRegPrev(regPhoto); toast('Photo captured','ok');
+}
+
+function loadRegFile(e){
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{ regPhoto=ev.target.result; showRegPrev(regPhoto); toast('Image loaded','ok'); };
+  r.readAsDataURL(f); e.target.value='';
+}
+
+function showRegPrev(src){
+  document.getElementById('regPrev').innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;">`;
+}
+
+async function doRegister(){
+  const name=document.getElementById('rName').value.trim();
+  const birth=document.getElementById('rBirth').value.trim();
+  const id=document.getElementById('rID').value.trim();
+  const dept=document.getElementById('rDept').value.trim();
+
+  if(!name)  { toast('Enter full name','err'); return; }
+  if(!birth||isNaN(birth)||+birth<1930||+birth>CY){ toast('Enter valid birth year','err'); return; }
+  if(!id)    { toast('Enter ID number','err'); return; }
+  if(db.people.find(p=>p.id===id)){ toast('ID already exists','err'); return; }
+  if(!regPhoto){ toast('Capture or upload a photo first','err'); return; }
+
+  toast('Extracting face descriptor from photo…');
+
+  // Load image element for face-api
+  const img = await new Promise((res,rej)=>{
+    const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=regPhoto;
+  });
+
+  let descriptor=null;
+  try{
+    const det = await faceapi
+      .detectSingleFace(img, new faceapi.SsdMobilenetv1Options({minConfidence:0.3}))
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    if(det){
+      descriptor=det.descriptor;
+      toast('✓ Face data extracted for '+name,'ok');
+    }else{
+      toast('⚠ No face detected in photo — use a clearer photo','warn');
+    }
+  }catch(e){ toast('Face error: '+e.message,'warn'); }
+
+  db.people.push({id,name,birthYear:parseInt(birth),dept,photo:regPhoto,descriptor});
+  persist();
+  rebuildMatcher();
+  renderAll();
+
+  // reset
+  document.getElementById('rName').value='';
+  document.getElementById('rBirth').value='';
+  document.getElementById('rID').value='';
+  document.getElementById('rDept').value='';
+  document.getElementById('regPrev').innerHTML='📸';
+  document.getElementById('regFile').value='';
+  regPhoto=null;
+  toast('✓ '+name+' registered!','ok');
+}
+
+function deletePerson(id){
+  if(!confirm('Remove this person?')) return;
+  db.people=db.people.filter(p=>p.id!==id);
+  db.att=db.att.filter(a=>a.pid!==id);
+  persist(); rebuildMatcher(); renderAll();
+  if(curPerson&&curPerson.id===id){
+    document.getElementById('profCard').style.display='none';
+    document.getElementById('profEmpty').style.display='flex';
+    document.getElementById('profPhoto').classList.remove('hit');
+    document.getElementById('matchTag').classList.remove('show');
+    curPerson=null;
+  }
+  toast('Person removed','warn');
+}
+
+// ═══════════════════════════ RENDER ═══════════════════════════
+function renderPeopleList(){
+  const el=document.getElementById('peopleList');
+  document.getElementById('pplCnt').textContent=db.people.length;
+  if(!db.people.length){
+    el.innerHTML='<div style="color:var(--dim);text-align:center;padding:18px;font-family:\'Share Tech Mono\',monospace;font-size:11px;">No people registered</div>';
+    return;
+  }
+  el.innerHTML=db.people.map(p=>`
+    <div class="prow ${curPerson&&curPerson.id===p.id?'on':''}" onclick="quickShow('${p.id}')">
+      <div class="pph">${p.photo?`<img src="${p.photo}">`:'👤'}</div>
+      <div class="pinfo">
+        <div class="pname2">${p.name}</div>
+        <div class="pid2">${p.id} · ${CY-parseInt(p.birthYear)}yr · ${p.descriptor?'✓face':'⚠no-face'}</div>
+      </div>
+      <button class="pdel" onclick="event.stopPropagation();deletePerson('${p.id}')">✕</button>
+    </div>`).join('');
+}
+
+function quickShow(id){
+  const p=db.people.find(x=>x.id===id);
+  if(p) showProfile(p,99);
+}
+
+function renderRegTable(){
+  const t=document.getElementById('regTbody');
+  document.getElementById('regCnt').textContent=db.people.length;
+  if(!db.people.length){t.innerHTML='<tr><td colspan="7" class="etd">No people registered</td></tr>';return;}
+  t.innerHTML=db.people.map(p=>`
+    <tr>
+      <td>${p.photo?`<img src="${p.photo}" style="width:34px;height:34px;border-radius:4px;object-fit:cover;border:1px solid var(--border);">`:'👤'}</td>
+      <td style="font-weight:700;">${p.name}</td>
+      <td style="color:var(--green);">${p.id}</td>
+      <td>${CY-parseInt(p.birthYear)}</td>
+      <td style="color:var(--dim);">${p.dept||'—'}</td>
+      <td style="color:${p.descriptor?'var(--green)':'var(--red)'};font-family:'Share Tech Mono',monospace;font-size:10px;">${p.descriptor?'✓ READY':'⚠ NONE'}</td>
+      <td><button class="btn br2" style="padding:4px 9px;font-size:8px;" onclick="deletePerson('${p.id}')">✕</button></td>
+    </tr>`).join('');
+}
+
+function renderAttTable(){
+  const t=document.getElementById('attTbody');
+  const today=new Date().toDateString();
+  const dateStr=new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+
+  const rows=db.people.map(p=>{
+    const rec=db.att.find(a=>a.pid===p.id&&new Date(a.ts).toDateString()===today);
+    return{p,status:rec?rec.status:'Absent',time:rec?rec.time:'—',date:rec?rec.date:dateStr};
+  });
+
+  if(!rows.length){t.innerHTML='<tr><td colspan="8" class="etd">No people registered</td></tr>';updateAttCounts(0,0,0);return;}
+
+  t.innerHTML=rows.map(r=>`
+    <tr>
+      <td>${r.p.photo?`<img src="${r.p.photo}" style="width:30px;height:30px;border-radius:3px;object-fit:cover;">`:'👤'}</td>
+      <td style="font-weight:700;color:var(--text);">${r.p.name}</td>
+      <td style="color:var(--green);">${r.p.id}</td>
+      <td>${CY-parseInt(r.p.birthYear)}</td>
+      <td style="color:var(--dim);">${r.p.dept||'—'}</td>
+      <td><span class="bp2 ${r.status==='Present'?'bpres2':'babs2'}">${r.status==='Present'?'✓':'✗'} ${r.status}</span></td>
+      <td style="color:var(--dim);">${r.time}</td>
+      <td style="color:var(--dim);">${r.date}</td>
+    </tr>`).join('');
+
+  const pres=rows.filter(r=>r.status==='Present').length;
+  updateAttCounts(pres,rows.length-pres,rows.length);
+}
+
+function updateAttCounts(p,a,t){
+  document.getElementById('cPres').textContent=p;
+  document.getElementById('cAbs').textContent=a;
+  document.getElementById('cTot').textContent=t;
+}
+
+function updateDbStats(){
+  document.getElementById('dbPpl').textContent=db.people.length;
+  document.getElementById('dbAtt').textContent=db.att.length;
+  document.getElementById('dbNm').textContent=db.name;
+}
+
+function renderAll(){renderPeopleList();renderRegTable();renderAttTable();updateDbStats();}
+
+// ═══════════════════════════ ATTENDANCE ACTIONS ═══════════════════════════
+function markAllAbsent(){
+  if(!confirm('Mark all unmarked as Absent?')) return;
+  const now=new Date(); const today=now.toDateString();
+  const ds=now.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  db.people.forEach(p=>{
+    if(!db.att.find(a=>a.pid===p.id&&new Date(a.ts).toDateString()===today)){
+      db.att.push({pid:p.id,name:p.name,idNum:p.id,dept:p.dept||'',birthYear:p.birthYear,
+        photo:p.photo||null,status:'Absent',time:'—',date:ds,ts:Date.now()});
+    }
+  });
+  persist(); renderAttTable(); toast('All absent marked','ok');
+}
+
+function clearToday(){
+  if(!confirm('Clear today\'s attendance?')) return;
+  const today=new Date().toDateString();
+  db.att=db.att.filter(a=>new Date(a.ts).toDateString()!==today);
+  persist(); renderAttTable(); toast('Today cleared','warn');
+}
+
+// ═══════════════════════════ CSV EXPORT ═══════════════════════════
+function exportCSV(){
+  const today=new Date().toDateString();
+  const ds=new Date().toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+  const rows=db.people.map(p=>{
+    const rec=db.att.find(a=>a.pid===p.id&&new Date(a.ts).toDateString()===today);
+    return{Name:p.name,'ID Number':p.id,Department:p.dept||'—',Age:CY-parseInt(p.birthYear),
+      Status:rec?rec.status:'Absent',Time:rec?rec.time:'—',Date:rec?rec.date:ds};
+  });
+  if(!rows.length){toast('No people to export','warn');return;}
+  const hdr=Object.keys(rows[0]);
+  const csv=[hdr.join(','),...rows.map(r=>hdr.map(h=>`"${(r[h]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download=`RV_FaceID_${new Date().toLocaleDateString('en-CA')}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Exported: '+a.download,'ok');
+}
+
+// ═══════════════════════════ CSV IMPORT ═══════════════════════════
+function importCSV(e){
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const lines=ev.target.result.split(/\r?\n/).filter(l=>l.trim());
+      if(lines.length<2){toast('Empty file','err');return;}
+      const hdrs=lines[0].split(',').map(h=>h.replace(/"/g,'').trim().toLowerCase());
+      const ni=hdrs.findIndex(h=>h.includes('name'));
+      const ii=hdrs.findIndex(h=>h==='id'||h==='id number'||h.includes('id'));
+      const si=hdrs.findIndex(h=>h.includes('status'));
+      if(ni<0&&ii<0){toast('No Name or ID column found','err');return;}
+      const now=new Date(); const today=now.toDateString();
+      const ds=now.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});
+      const ts=now.toLocaleTimeString('en-US',{hour12:false});
+      let matched=0,skipped=0;
+      for(let i=1;i<lines.length;i++){
+        const cols=lines[i].split(',').map(c=>c.replace(/"/g,'').trim());
+        const rn=ni>=0?cols[ni]:''; const ri=ii>=0?cols[ii]:'';
+        const rs=si>=0?cols[si]:'Present';
+        const p=db.people.find(x=>(ri&&x.id.toLowerCase()===ri.toLowerCase())||(rn&&x.name.toLowerCase()===rn.toLowerCase()));
+        if(!p){skipped++;continue;}
+        if(!db.att.find(a=>a.pid===p.id&&new Date(a.ts).toDateString()===today)){
+          const status=rs.toLowerCase().includes('absent')?'Absent':'Present';
+          db.att.unshift({pid:p.id,name:p.name,idNum:p.id,dept:p.dept||'',birthYear:p.birthYear,
+            photo:p.photo||null,status,time:ts,date:ds,ts:Date.now()-matched});
+          matched++;
+        }
+      }
+      persist(); renderAttTable();
+      toast(`Imported ${matched} records, ${skipped} not found`,matched>0?'ok':'warn');
+    }catch(err){toast('Error: '+err.message,'err');}
+  };
+  r.readAsText(file); e.target.value='';
+}
+
+// ═══════════════════════════ DB FILE ═══════════════════════════
+function saveDB(){
+  const name=document.getElementById('dbSaveName').value.trim()||db.name;
+  const data={version:5,app:'RV Face ID',name,savedAt:new Date().toISOString(),
+    people:db.people.map(p=>({...p,descriptor:p.descriptor?Array.from(p.descriptor):null})),
+    att:db.att};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));
+  a.download=(name||'rvfaceid')+'.rvdb';
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Saved: '+a.download,'ok');
+}
+
+function loadDB(e){
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(!Array.isArray(d.people)) throw new Error('Invalid format');
+      db.name=d.name||'default';
+      db.people=d.people.map(p=>({...p,descriptor:p.descriptor?new Float32Array(p.descriptor):null}));
+      db.att=d.att||[];
+      persist(); rebuildMatcher(); renderAll();
+      document.getElementById('profCard').style.display='none';
+      document.getElementById('profEmpty').style.display='flex';
+      document.getElementById('profPhoto').classList.remove('hit');
+      document.getElementById('matchTag').classList.remove('show');
+      curPerson=null;
+      toast('Loaded "'+db.name+'" — '+db.people.length+' people','ok');
+    }catch(err){toast('Invalid .rvdb file','err');}
+  };
+  r.readAsText(file); e.target.value='';
+}
+
+// ═══════════════════════════ SPEECH ═══════════════════════════
+function speakName(name){
+  if(!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance('Welcome '+name+'. Attendance marked.');
+  u.rate=0.93; u.pitch=1.05; u.volume=1;
+  const vs=window.speechSynthesis.getVoices();
+  const v=vs.find(v=>v.lang.startsWith('en')&&v.name.toLowerCase().includes('female'))||vs.find(v=>v.lang.startsWith('en'));
+  if(v) u.voice=v;
+  window.speechSynthesis.speak(u);
+}
+
+// ═══════════════════════════ TOAST ═══════════════════════════
+function toast(msg,type=''){
+  const c=document.getElementById('toastC');
+  const el=document.createElement('div');
+  el.className='toast'+(type?' '+type:'');
+  el.textContent=msg;
+  c.appendChild(el);
+  setTimeout(()=>el.remove(),3500);
+}
+
+// ═══════════════════════════ BOOT ═══════════════════════════
+// Wait for face-api.js to load, then init
+let _bootTries=0;
+function boot(){
+  _bootTries++;
+  if(typeof faceapi!=='undefined' && typeof faceapi.nets!=='undefined'){
+    loadModels();
+  } else if(_bootTries>60){
+    document.getElementById('loadScreen').style.display='none';
+    document.getElementById('errScreen').style.display='flex';
+  } else {
+    setTimeout(boot,300);
+  }
+}
+window.addEventListener('load', boot);
+</script>
+</body>
+</html>
